@@ -1,0 +1,1 @@
+import{_ as o}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{p as t,U as c,ag as n,m as s}from"./vue-C0a_V59r.js";const a={},r={class:"app-container"};function _(p,m){const e=n("el-empty");return s(),t("div",r,[c(e,{description:"敬请期待"})])}const l=o(a,[["render",_],["__scopeId","data-v-72349b0b"]]);export{l as default};

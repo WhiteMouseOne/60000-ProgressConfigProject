@@ -1,0 +1,1 @@
+import{l as o,aB as r,E as t,m as a,p as n}from"./vue-C0a_V59r.js";const s={class:"app-container"},d=o({__name:"index",setup(c){const e=r();return t(()=>{e.replace({path:"/trace/order-records"})}),(p,_)=>(a(),n("div",s))}});export{d as default};
