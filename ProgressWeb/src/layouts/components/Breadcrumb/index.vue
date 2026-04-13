@@ -3,7 +3,7 @@ import { ref } from "vue"
 import { type RouteLocationMatched, useRoute, useRouter } from "vue-router"
 import { useRouteListener } from "@/hooks/useRouteListener"
 import { compile } from "path-to-regexp"
-import { langMap, getLangValue } from "@/locales/langMap"
+import { resolveSidebarTitle } from "@/utils/sidebarTitle"
 
 const route = useRoute()
 const router = useRouter()
@@ -45,10 +45,10 @@ listenerRouteChange((route) => {
   <el-breadcrumb class="app-breadcrumb">
     <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="item.path">
       <span v-if="item.redirect === 'noRedirect' || index === breadcrumbs.length - 1" class="no-redirect">
-        {{ $t(getLangValue("sidebar", item.name)) }}
+        {{ resolveSidebarTitle(item) }}
       </span>
       <a v-else class="noRed">
-        {{ $t(getLangValue("sidebar", item.name)) }}
+        {{ resolveSidebarTitle(item) }}
       </a>
     </el-breadcrumb-item>
   </el-breadcrumb>

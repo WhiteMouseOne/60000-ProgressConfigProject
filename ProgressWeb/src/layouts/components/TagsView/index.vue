@@ -7,7 +7,7 @@ import { useRouteListener } from "@/hooks/useRouteListener"
 import path from "path-browserify"
 import ScrollPane from "./ScrollPane.vue"
 import { Close } from "@element-plus/icons-vue"
-import { langMap, getLangValue } from "@/locales/langMap"
+import { resolveSidebarTitle } from "@/utils/sidebarTitle"
 
 const instance = getCurrentInstance()
 const router = useRouter()
@@ -199,7 +199,7 @@ const routerTo = (path: any) => {
         @contextmenu.prevent="openMenu(tag, $event)"
         @click="routerTo(tag.path)"
       >
-        {{ $t(getLangValue("sidebar", tag.name)) }}
+        {{ resolveSidebarTitle(tag) }}
         <el-icon v-if="!isAffix(tag)" :size="12" @click.prevent.stop="closeSelectedTag(tag)">
           <Close />
         </el-icon>

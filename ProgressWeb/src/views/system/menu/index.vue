@@ -65,7 +65,7 @@
                 <!-- <component class="icons" :is="scope.row.elIcon"></component> -->
               </template>
             </el-table-column>
-            <el-table-column prop="menuType":label="$t('systemMenu.menuType')" align="center" width="80">
+            <el-table-column prop="menuType" :label="$t('systemMenu.menuType')" align="center" width="80">
               <template #default="scope">
                 <el-tag v-if="scope.row.menuType == 'C'">{{ $t('systemMenu.menu') }}</el-tag>
                 <el-tag type="success" v-else-if="scope.row.menuType == 'M'">{{ $t('systemMenu.directory') }}</el-tag>
@@ -157,8 +157,22 @@
             </el-form-item>
           </el-col>
           <el-col :lg="12">
-             <el-form-item :label="$t('systemMenu.displayOrder')" prop="menuSort">
+            <el-form-item :label="$t('systemMenu.displayOrder')" prop="menuSort">
               <el-input-number v-model="formMenu.menuSort" controls-position="right" :min="0" :value="999" />
+            </el-form-item>
+          </el-col>
+          <!-- Progress 扩展：显式路由 name，与 LineMes 仅用 path 推导不同；留空则按路径末段转驼峰 -->
+          <el-col :lg="24">
+            <el-form-item prop="name">
+              <template #label>
+                <span>
+                  <el-tooltip :content="$t('systemMenu.routeNameTooltip')" placement="top">
+                    <el-icon><question-filled /></el-icon>
+                  </el-tooltip>
+                  {{ $t("systemMenu.routeName") }}
+                </span>
+              </template>
+              <el-input v-model="formMenu.name" :placeholder="$t('systemMenu.enterRouteName')" clearable />
             </el-form-item>
           </el-col>
           <el-col :lg="24" v-if="formMenu.menuType != 'F'">
@@ -367,7 +381,8 @@ const getMenuData = async (config: Config) => {
   let res: any = await getMenuDataApi(config)
   if (res) {
     console.log("%c [ res ]-336", "font-size:13px; background:pink; color:#bf2c9f;", res)
-    menuTableData.value = res.data.map((item: any) => {
+    const list = Array.isArray(res.data) ? res.data : []
+    menuTableData.value = list.map((item: any) => {
       return changeAliveValue(item)
     })
   }
@@ -431,7 +446,9 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
   nextTick(() => {
     Object.assign(formMenu, row)
-    console.log("%c [ formMenu ]-431", "font-size:13px; background:pink; color:#bf2c9f;", formMenu)
+    formMenu.name = row.name != null ? String(row.name) : ""
+    formMenu.parentId = row.parentId != null && row.parentId !== "" ? Number(row.parentId) : 0
+    formMenu.menuSort = row.menuSort != null && row.menuSort !== "" ? Number(row.menuSort) : 0
     formMenu.enable = formMenu.enable.toString()
     formMenu.keepAlive = formMenu.keepAlive ? "1" : "0"
   })
@@ -548,15 +565,18 @@ const formMenuRef = ref()
 const dialogVisible = ref()
 /**添加用户的form数据接收绑定 */
 const formMenu = reactive({
-  id: "",
-  parentId: "",
+  id: "" as string | number,
+  /** 与树「根菜单」id=0 一致，提交时规范为 int */
+  parentId: 0 as number | string,
   menuType: "",
   perms: "",
   title: "",
+  /** 路由 name，须与 sidebar.xxx 的键一致；留空则按路由地址末段转驼峰 */
+  name: "",
   path: "",
   elIcon: "",
   url: "",
-  menuSort: "" as any,
+  menuSort: 999,
   enable: "",
   keepAlive: "0"
 })
@@ -572,12 +592,14 @@ const rules = reactive({
 const resetFormMenu = () => {
   Object.assign(formMenu, {
     id: "",
-    parentId: "",
+    parentId: 0,
     menuType: "M",
     title: "",
+    name: "",
     path: "",
     elIcon: "",
     url: "",
+    menuSort: 999,
     enable: "",
     keepAlive: ""
   })
@@ -612,29 +634,84 @@ const getTreeSelect = () => {
     console.log("%c [ menuOptions.value ]-428", "font-size:13px; background:pink; color:#bf2c9f;", menuOptions.value)
   })
 }
+/** 路由地址末段 kebab/snake 转驼峰，供动态路由 name 与 langMap 对齐 */
+const pathLastSegmentToCamel = (path: string) => {
+  const raw = (path.match(/\/([^/]+)$/) || [])[1] || ""
+  if (!raw) return ""
+  const parts = raw.split(/[-_]/)
+  return parts.map((p, i) => (i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1))).join("")
+}
+
+/** 在菜单树中查找节点 */
+const findMenuNodeById = (nodes: any[], id: number | string): any | null => {
+  for (const n of nodes || []) {
+    if (n.id === id || String(n.id) === String(id)) return n
+    const c = findMenuNodeById(n.children || [], id)
+    if (c) return c
+  }
+  return null
+}
+
+/** 目录 M：按启用子菜单数计算 alwaysShow（1 个子且启用则扁平，0 或多个规则见产品） */
+const alwaysShowForDirectory = (menuId: number | string | undefined): number => {
+  const tree = menuTableData.value
+  if (!tree || !Array.isArray(tree) || menuId === undefined || menuId === "") return 0
+  const node = findMenuNodeById(tree, menuId)
+  if (!node || !node.children?.length) return 0
+  const n = node.children.filter((c: any) => c.enable === 1 || c.enable === "1").length
+  return n > 1 ? 1 : 0
+}
+
+/** 后端 DTO 要求 int；树未选时 el-tree-select 可能为 "" */
+const normalizeParentId = (): number => {
+  const p = formMenu.parentId
+  if (p === "" || p === null || p === undefined) return 0
+  const n = Number(p)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** 解析提交用的路由 name：优先表单；误填路径时取末段转驼峰；否则由 path 末段转驼峰 */
+const resolveRouteName = (): string => {
+  let t = String(formMenu.name ?? "").trim()
+  if (t.includes("/")) {
+    const last = (t.match(/\/([^/]+)\/?$/) || [])[1] || ""
+    t = last ? pathLastSegmentToCamel("/" + last) : ""
+  }
+  if (t) return t
+  return pathLastSegmentToCamel(formMenu.path)
+}
+
+const normalizeMenuSort = (): string => String(formMenu.menuSort ?? "")
+
 /**新增菜单，提交表单内容 */
 const onSubmit = () => {
   // 表单内容验证，表单的ref属性拿到表单，使用el-api校验
   formMenuRef.value.validate(async (valid: FormInstance | undefined) => {
     if (valid) {
-      let menuname = (formMenu.path.match(/\/([^\/]+)$/) || [])[1] as string
+      const routeName = resolveRouteName()
+      const parentId = normalizeParentId()
+      const menuSortStr = normalizeMenuSort()
       const currentUser = localStorage.getItem("employeeNumber")
-      console.log("fm", formMenu)
+      const alwaysShowM =
+        formMenu.menuType === "M"
+          ? getAction.action === "edit"
+            ? alwaysShowForDirectory(formMenu.id)
+            : 0
+          : 0
       if (getAction.action === "add") {
-        console.log("jinruadd")
         let formMenudAdd = reactive({
-          parentId: formMenu.parentId,
+          parentId,
           menuType: formMenu.menuType,
-          name: menuname,
+          name: routeName,
           title: formMenu.title,
           path: formMenu.path,
           elIcon: formMenu.elIcon,
           url: formMenu.menuType === "M" ? "Layouts" : formMenu.url,
-          menuSort: formMenu.menuSort,
+          menuSort: menuSortStr,
           enable: formMenu.enable,
           keepAlive: formMenu.keepAlive === "" || formMenu.keepAlive === "0" ? 0 : 1,
           createBy: currentUser,
-          alwaysShow: formMenu.menuType === "M" ? 1 : 0,
+          alwaysShow: alwaysShowM,
           Redirect: ""
         })
         // await只会返回给他最近的async回调函数！！！否则报错
@@ -656,19 +733,19 @@ const onSubmit = () => {
         // 编辑用户信息
       } else if (getAction.action === "edit") {
         let formMenudEdit = reactive({
-          id: formMenu.id,
-          parentId: formMenu.parentId,
+          id: Number(formMenu.id),
+          parentId,
           menuType: formMenu.menuType,
-          name: menuname,
+          name: routeName,
           title: formMenu.title,
           path: formMenu.path,
           elIcon: formMenu.elIcon,
           url: formMenu.menuType === "M" ? "Layouts" : formMenu.url,
-          menuSort: formMenu.menuSort,
+          menuSort: menuSortStr,
           enable: formMenu.enable,
           keepAlive: formMenu.keepAlive,
           updateBy: currentUser,
-          alwaysShow: formMenu.menuType === "M" ? 1 : 0,
+          alwaysShow: alwaysShowM,
           Redirect: ""
         })
         const res: any = await updateMenuDataApi(formMenudEdit)

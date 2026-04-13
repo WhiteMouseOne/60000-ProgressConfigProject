@@ -343,12 +343,18 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
           :height="tableHeight"
         >
           <el-table-column type="index" label="序号" width="64" fixed="left" :index="tableIndex" align="center" />
-          <el-table-column prop="poNumber" label="订单编号" fixed="left" width="130" show-overflow-tooltip />
-          <el-table-column prop="projectCode" label="项目编号" fixed="left" width="110" show-overflow-tooltip />
+          <el-table-column prop="poNumber" label="订单编号" fixed="left" width="90" show-overflow-tooltip />
+          <el-table-column prop="projectCode" label="项目编号" fixed="left" width="90" show-overflow-tooltip />
           <el-table-column prop="partName" label="加工件名称" fixed="left" width="150" show-overflow-tooltip />
           <el-table-column prop="supplierName" label="供应商" fixed="left" width="130" show-overflow-tooltip />
           <el-table-column prop="drawingNumber" label="图号" width="120" show-overflow-tooltip />
-          <el-table-column prop="quantity" label="数量" width="72" />
+          <el-table-column prop="quantity" label="数量" width="60" />
+          <el-table-column prop="receivedQuantity" label="已收数量" width="88" align="right">
+            <template #default="{ row }">{{ row.receivedQuantity != null ? row.receivedQuantity : "-" }}</template>
+          </el-table-column>
+          <el-table-column prop="shippedQuantity" label="已发数量" width="96" align="right">
+            <template #default="{ row }">{{ row.shippedQuantity != null ? row.shippedQuantity : "-" }}</template>
+          </el-table-column>
           <el-table-column prop="requiredDeliveryDate" label="交期" width="110" show-overflow-tooltip>
             <template #default="{ row }">{{ fmtDateCol(row.requiredDeliveryDate) }}</template>
           </el-table-column>
@@ -373,7 +379,7 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
           <el-table-column label="返修发货" width="110">
             <template #default="{ row }">{{ fmtDateCol(row.repairShippedAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right" align="center">
+          <el-table-column label="操作" width="160" fixed="right" align="center">
             <template #default="{ row }">
               <el-button v-if="canAdminEdit" link type="primary" @click="openEdit(row)">编辑</el-button>
               <el-button v-if="canAdminEdit" link type="danger" @click="removeLine(row)">删除</el-button>

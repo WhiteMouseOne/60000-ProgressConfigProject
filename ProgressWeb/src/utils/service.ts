@@ -62,9 +62,19 @@ function createService() {
       // status 是 HTTP 状态码
       const status = get(error, "response.status")
       switch (status) {
-        case 400:
-          error.message = "请求错误"
+        case 400: {
+          const data = get(error, "response.data") as Record<string, unknown> | string | undefined
+          let msg = "请求错误"
+          if (data && typeof data === "object") {
+            const m = data.message ?? data.title
+            if (typeof m === "string" && m) msg = m
+            else if (data.errors && typeof data.errors === "object") msg = JSON.stringify(data.errors)
+          } else if (typeof data === "string" && data) {
+            msg = data
+          }
+          error.message = msg
           break
+        }
         case 401:
           // Token 过期时
           console.log("401")

@@ -37,6 +37,9 @@ builder.Services.AddScoped<IMetaService, MetaService>();
 builder.Services.AddScoped<IAlertSettingService, AlertSettingService>();
 builder.Services.AddScoped<ISupplierAdminService, SupplierAdminService>();
 builder.Services.AddScoped<ISupplierProfileService, SupplierProfileService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IMenuService, MenuService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICraftAdminService, CraftAdminService>();
 builder.Services.AddScoped<IOrderLineService, OrderLineService>();
 builder.Services.AddScoped<IRepairService, RepairService>();
@@ -95,6 +98,9 @@ builder.Services.AddCors(p => p.AddPolicy("cors", c =>
 
 var app = builder.Build();
 
+var wwwroot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(wwwroot, "uploads", "avatars"));
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ProgressDbContext>();
@@ -102,6 +108,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCors("cors");
+app.UseStaticFiles();
 app.UseSwagger();
 app.UseSwaggerUI(o =>
 {

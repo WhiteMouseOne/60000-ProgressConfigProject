@@ -4,7 +4,7 @@ import { useRouter } from "vue-router"
 
 const router = useRouter()
 onBeforeMount(() => {
-  router.replace({ path: "/trace/order-records" })
+  router.replace({ path: "/order-records/index" })
 })
 </script>
 

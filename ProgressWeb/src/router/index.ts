@@ -44,6 +44,21 @@ export const constantRoutes: RouteRecordRaw[] = [
       hidden: true
     }
   },
+  {
+    path: "/trace/order-records",
+    redirect: "/order-records/index",
+    meta: { hidden: true }
+  },
+  {
+    path: "/trace/alert-records",
+    redirect: "/alert-records/index",
+    meta: { hidden: true }
+  },
+  {
+    path: "/warning/rules",
+    redirect: "/warning-rules/index",
+    meta: { hidden: true }
+  },
   // {
   //   path: "/",
   //   name: "main",

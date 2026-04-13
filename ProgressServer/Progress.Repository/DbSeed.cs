@@ -95,7 +95,7 @@ namespace Progress.Repository
                 new UserRole { Id = 3, UserId = 3, RoleId = 3 });
 
             // 菜单种子仅在空库首次创建角色时写入。若数据库已有角色，EnsureSeedAsync 会提前 return，此处不会执行。
-            // 存量库需手工更新 Menus / MenuRoles，或删库重建，或编写一次性迁移 SQL。
+            // 存量库请执行 Scripts/MigrateMenus_TopLevelTraceWarning_MySql.sql（基于旧种子 Id 6–8、13–14）。
             int mi = 1;
             void menu(Menu m) => db.Menus!.Add(m);
 
@@ -172,7 +172,7 @@ namespace Progress.Repository
                 Id = mi++,
                 ParentId = 1,
                 Name = "supplierManage",
-                Title = "供应商",
+                Title = "供应商管理",
                 Path = "supplier",
                 ElIcon = "Shop",
                 Url = "/system/supplier/index",
@@ -185,20 +185,22 @@ namespace Progress.Repository
                 CreateTime = DateTime.UtcNow
             });
 
+            // 业务侧栏顺序：订单追溯 → 预警记录 → 工艺管理（三子项）→ 预警管理 → 系统管理（四子项）。
+            // 「首页」由前端常量路由提供，不在菜单表。订单记录 / 预警记录 / 预警规则：一级目录（各为 M + Layouts + 单页 C）
             menu(new Menu
             {
                 Id = mi++,
                 ParentId = 0,
-                Name = "trace",
-                Title = "追溯管理",
-                Path = "/trace",
-                ElIcon = "List",
+                Name = "orderTrace",
+                Title = "订单追溯",
+                Path = "/order-records",
+                ElIcon = "document",
                 Url = "Layouts",
                 MenuType = "M",
                 MenuSort = "0",
                 KeepAlive = 0,
                 Enable = 1,
-                AlwaysShow = 1,
+                AlwaysShow = 0,
                 Redirect = "",
                 CreateTime = DateTime.UtcNow
             });
@@ -208,7 +210,7 @@ namespace Progress.Repository
                 ParentId = 6,
                 Name = "orderRecords",
                 Title = "订单记录",
-                Path = "order-records",
+                Path = "index",
                 ElIcon = "document",
                 Url = "/trace/order-records/index",
                 MenuType = "C",
@@ -222,14 +224,31 @@ namespace Progress.Repository
             menu(new Menu
             {
                 Id = mi++,
-                ParentId = 6,
+                ParentId = 0,
+                Name = "alertRecordsRoot",
+                Title = "预警记录",
+                Path = "/alert-records",
+                ElIcon = "Warning",
+                Url = "Layouts",
+                MenuType = "M",
+                MenuSort = "1",
+                KeepAlive = 0,
+                Enable = 1,
+                AlwaysShow = 0,
+                Redirect = "",
+                CreateTime = DateTime.UtcNow
+            });
+            menu(new Menu
+            {
+                Id = mi++,
+                ParentId = 8,
                 Name = "alertRecords",
                 Title = "预警记录",
-                Path = "alert-records",
+                Path = "index",
                 ElIcon = "Warning",
                 Url = "/trace/alert-records/index",
                 MenuType = "C",
-                MenuSort = "1",
+                MenuSort = "0",
                 KeepAlive = 0,
                 Enable = 1,
                 AlwaysShow = 0,
@@ -247,7 +266,7 @@ namespace Progress.Repository
                 ElIcon = "Cpu",
                 Url = "Layouts",
                 MenuType = "M",
-                MenuSort = "1",
+                MenuSort = "2",
                 KeepAlive = 0,
                 Enable = 1,
                 AlwaysShow = 1,
@@ -257,9 +276,9 @@ namespace Progress.Repository
             menu(new Menu
             {
                 Id = mi++,
-                ParentId = 9,
+                ParentId = 10,
                 Name = "craftContent",
-                Title = "工艺内容",
+                Title = "工艺内容设置",
                 Path = "craft-content",
                 ElIcon = "Notebook",
                 Url = "/process/craft-content/index",
@@ -274,9 +293,9 @@ namespace Progress.Repository
             menu(new Menu
             {
                 Id = mi++,
-                ParentId = 9,
+                ParentId = 10,
                 Name = "craftRecipe",
-                Title = "工艺配方",
+                Title = "工艺配方设置",
                 Path = "craft-recipe",
                 ElIcon = "Document",
                 Url = "/process/craft-recipe/index",
@@ -291,9 +310,9 @@ namespace Progress.Repository
             menu(new Menu
             {
                 Id = mi++,
-                ParentId = 9,
+                ParentId = 10,
                 Name = "craftStep",
-                Title = "工艺步序",
+                Title = "工艺步序设置",
                 Path = "craft-step",
                 ElIcon = "Sort",
                 Url = "/process/craft-step/index",
@@ -312,24 +331,24 @@ namespace Progress.Repository
                 ParentId = 0,
                 Name = "warning",
                 Title = "预警管理",
-                Path = "/warning",
+                Path = "/warning-rules",
                 ElIcon = "Bell",
                 Url = "Layouts",
                 MenuType = "M",
-                MenuSort = "2",
+                MenuSort = "3",
                 KeepAlive = 0,
                 Enable = 1,
-                AlwaysShow = 1,
+                AlwaysShow = 0,
                 Redirect = "",
                 CreateTime = DateTime.UtcNow
             });
             menu(new Menu
             {
                 Id = mi++,
-                ParentId = 13,
+                ParentId = 14,
                 Name = "warningRules",
                 Title = "预警规则",
-                Path = "rules",
+                Path = "index",
                 ElIcon = "AlarmClock",
                 Url = "/warning/rules/index",
                 MenuType = "C",
@@ -344,15 +363,15 @@ namespace Progress.Repository
             void mr(int id, int menuId, int roleId) =>
                 db.MenuRoles!.Add(new MenuRole { Id = id, MenuId = menuId, RoleId = roleId });
 
-            // Admin：全部菜单
+            // Admin：全部菜单 1–15
             mr(1, 1, 1); mr(2, 2, 1); mr(3, 3, 1); mr(4, 4, 1); mr(5, 5, 1);
             mr(6, 6, 1); mr(7, 7, 1); mr(8, 8, 1); mr(9, 9, 1); mr(10, 10, 1);
-            mr(11, 11, 1); mr(12, 12, 1); mr(13, 13, 1); mr(14, 14, 1);
-            // Supervisor：追溯 / 工艺 / 预警（不含系统管理）
-            mr(15, 6, 2); mr(16, 7, 2); mr(17, 8, 2); mr(18, 9, 2); mr(19, 10, 2);
-            mr(20, 11, 2); mr(21, 12, 2); mr(22, 13, 2); mr(23, 14, 2);
-            // Supplier：追溯 + 订单记录
-            mr(24, 6, 3); mr(25, 7, 3);
+            mr(11, 11, 1); mr(12, 12, 1); mr(13, 13, 1); mr(14, 14, 1); mr(15, 15, 1);
+            // Supervisor：业务菜单 6–15（不含系统管理）
+            mr(16, 6, 2); mr(17, 7, 2); mr(18, 8, 2); mr(19, 9, 2); mr(20, 10, 2);
+            mr(21, 11, 2); mr(22, 12, 2); mr(23, 13, 2); mr(24, 14, 2); mr(25, 15, 2);
+            // Supplier：订单记录（根 + 页）
+            mr(26, 6, 3); mr(27, 7, 3);
 
             db.Crafts!.Add(new Craft { Id = 1, Code = "C1", Name = "示例工艺", RecipeBody = "[]" });
             var recipe = new CraftRecipe { Id = 1, Code = 1, Name = "默认配方" };

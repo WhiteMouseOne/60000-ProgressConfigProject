@@ -4,7 +4,7 @@ import { type RouteRecordRaw } from "vue-router"
 import SidebarItemLink from "./SidebarItemLink.vue"
 import { isExternal } from "@/utils/validate"
 import path from "path-browserify"
-import { langMap, getLangValue } from "@/locales/langMap"
+import { resolveSidebarTitle } from "@/utils/sidebarTitle"
 import { Sidebar } from ".."
 
 interface Props {
@@ -61,8 +61,8 @@ const resolvePath = (routePath: string) => {
     <SidebarItemLink v-if="theOnlyOneChild.meta" :to="resolvePath(theOnlyOneChild.path)">
       <el-menu-item :index="resolvePath(theOnlyOneChild.path)">
         <SvgIcon v-if="theOnlyOneChild.meta.elIcon" :name="theOnlyOneChild.meta.elIcon" />
-        <template v-if="theOnlyOneChild.meta.title" #title>
-          {{ $t(getLangValue("sidebar", theOnlyOneChild.name)) }}
+        <template v-if="theOnlyOneChild.meta" #title>
+          {{ resolveSidebarTitle(theOnlyOneChild) }}
         </template>
       </el-menu-item>
     </SidebarItemLink>
@@ -71,7 +71,7 @@ const resolvePath = (routePath: string) => {
     <template #title>
       <SvgIcon v-if="props.item.meta?.elIcon" :name="props.item.meta.elIcon" class="changeWidth" />
       <!-- <component v-else-if="props.item.meta?.elIcon" :is="props.item.meta.elIcon" class="el-icon" /> -->
-      <span v-if="props.item.meta?.title">{{ $t(getLangValue("sidebar", props.item.name)) }}</span>
+      <span>{{ resolveSidebarTitle(props.item) }}</span>
     </template>
     <template v-if="props.item.children">
       <SidebarItem

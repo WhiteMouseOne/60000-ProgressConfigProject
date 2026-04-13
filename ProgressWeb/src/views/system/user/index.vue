@@ -399,6 +399,8 @@ const getUserData = async (userConfig: User) => {
         if (item.email == null && item.Email != null) item.email = item.Email
         return item
       })
+    } else {
+      userTableData.value = []
     }
   }
 }
@@ -510,7 +512,7 @@ const handleUserRemove = (row: any) => {
       if (res) {
         ElMessage({
           showClose: true,
-          message: res.data,
+          message: res.message,
           type: "success"
         })
         getUserData(userConfig)
@@ -666,7 +668,7 @@ const onSubmit = () => {
           dialogVisible.value = false
           ElMessage({
             showClose: true,
-            message: res.data,
+            message: res.message,
             type: "success"
           })
           // 重新获取数据
@@ -691,7 +693,7 @@ const onSubmit = () => {
           dialogVisible.value = false
           ElMessage({
             showClose: true,
-            message: res.data,
+            message: res.message,
             type: "success"
           })
           // 重新获取数据

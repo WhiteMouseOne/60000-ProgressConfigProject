@@ -62,9 +62,20 @@ const langMap = {
   sidebar_craftRecipe: "sidebar.craftRecipe",
   sidebar_craftStep: "sidebar.craftStep",
   sidebar_warning: "sidebar.warning",
-  sidebar_warningRules: "sidebar.warningRules"
+  sidebar_warningRules: "sidebar.warningRules",
+  sidebar_alertRecordsRoot: "sidebar.alertRecordsRoot",
+  /** 须与路由 name 一致：getLangValue('sidebar', 'testRecords') → 键名 sidebar_testRecords */
+  sidebar_testRecords: "sidebar.testRecords"
 }
 const langMapKeys = Object.keys(langMap)
+
+/** 侧边栏路由 name 对应的 i18n 路径；无映射时返回 undefined（调用方应使用 meta.title） */
+export function getSidebarI18nPath(routeName: string | symbol | undefined): string | undefined {
+  if (routeName == null || typeof routeName !== "string" || routeName === "") return undefined
+  const key = `sidebar_${routeName}` as keyof typeof langMap
+  return key in langMap ? (langMap[key] as string) : undefined
+}
+
 /**根据前缀和后缀获取对应的value（对应语言包的路径） */
 const getLangValue = (prefixKey: string, suffixKey: any) => {
   const key = `${prefixKey}_${suffixKey}` as keyof typeof langMap

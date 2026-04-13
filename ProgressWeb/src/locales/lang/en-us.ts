@@ -91,15 +91,17 @@ export default {
     userManage: "User Management",
     menuManage: "Menu Management",
     roleManage: "Role Management",
-    supplierManage: "Suppliers",
+    supplierManage: "Supplier Management",
     orderRecords: "Order Records",
     alertRecords: "Alert Records",
+    alertRecordsRoot: "Alert Records",
     processManage: "Process Management",
-    craftContent: "Process Content",
-    craftRecipe: "Process Recipe",
-    craftStep: "Process Steps",
+    craftContent: "Process Content Settings",
+    craftRecipe: "Process Recipe Settings",
+    craftStep: "Process Step Settings",
     warning: "Alert Management",
-    warningRules: "Alert Rules"
+    warningRules: "Alert Rules",
+    testRecords:"Test P1"
   },
   //工序记录页-追溯管理-工序记录
   processRecord: {
@@ -325,6 +327,9 @@ export default {
     componentPathTooltip: "Access component path, e.g.: `/system/user/index`, default in `views` directory",
     cacheTooltip: "If selected, the page will be cached by `keep-alive`",
     enterRouteAddress: "Please enter route address",
+    routeName: "Route name",
+    routeNameTooltip: "Must match dynamic route name and lang key sidebar.xxx (camelCase); empty = auto from path",
+    enterRouteName: "e.g. orderTrace, orderRecords",
     enterComponentPath: "Please enter component path",
     icon:"Icon",
     operate:"Operate"

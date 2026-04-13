@@ -92,15 +92,17 @@ export default {
     userManage: "用户管理",
     menuManage: "菜单管理",
     roleManage: "角色管理",
-    supplierManage: "供应商",
+    supplierManage: "供应商管理",
     orderRecords: "订单记录",
     alertRecords: "预警记录",
+    alertRecordsRoot: "预警记录",
     processManage: "工艺管理",
-    craftContent: "工艺内容",
-    craftRecipe: "工艺配方",
-    craftStep: "工艺步序",
+    craftContent: "工艺内容设置",
+    craftRecipe: "工艺配方设置",
+    craftStep: "工艺步序设置",
     warning: "预警管理",
-    warningRules: "预警规则"
+    warningRules: "预警规则",
+    testRecords:"测试页面"
   },
   //工序记录页——追溯管理-工序记录
   processRecord: {
@@ -332,6 +334,9 @@ export default {
     componentPathTooltip: "访问的组件路径，如：`/system/user/index`，默认在`views`目录下",
     cacheTooltip: "选择是页面会被`keep-alive`缓存",
     enterRouteAddress: "请输入路由地址",
+    routeName: "路由名称",
+    routeNameTooltip: "与动态路由 name、语言包 sidebar.xxx 一致，英文驼峰；留空则按路由地址末段自动生成",
+    enterRouteName: "如 orderTrace、orderRecords",
     enterComponentPath: "请输入组件路径",
     icon:"图标",
     operate:"操作"

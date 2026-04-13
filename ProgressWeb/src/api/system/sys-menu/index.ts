@@ -27,7 +27,7 @@ export function updateMenuDataApi(params: any) {
 //删除菜单
 export function deleteMenuApi(params: any) {
   return request({
-    url: "/api/menu/DeleteMenu",
+    url: "/api/Menu/DeleteMenu",
     method: "post",
     data: params
   })
@@ -35,7 +35,7 @@ export function deleteMenuApi(params: any) {
 // 批量删除菜单
 export function batchDelMenuApi(params: any) {
   return request({
-    url: "/api/menu/BatchDelMenu",
+    url: "/api/Menu/BatchDelMenu",
     method: "post",
     data: params
   })
@@ -43,7 +43,7 @@ export function batchDelMenuApi(params: any) {
 // 更改菜单状态
 export function changeMenuStatusApi(params: any) {
   return request({
-    url: "/api/menu/ChangeMenuStatus",
+    url: "/api/Menu/ChangeMenuStatus",
     method: "post",
     data: params
   })
@@ -51,7 +51,7 @@ export function changeMenuStatusApi(params: any) {
 
 export function getMenuTreeSelectApi(roleId?: any) {
   return request({
-    url: "/api/menu/GetMenuTreeSelect",
+    url: "/api/Menu/GetMenuTreeSelect",
     method: "get",
     params: { roleId: roleId }
   })
@@ -59,7 +59,7 @@ export function getMenuTreeSelectApi(roleId?: any) {
 
 export function getAllMenuTreeSelectApi() {
   return request({
-    url: "/api/menu/GetAllMenuTreeSelect",
+    url: "/api/Menu/GetAllMenuTreeSelect",
     method: "get"
   })
 }

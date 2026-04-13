@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Progress.IService.SystemManagement;
 using Progress.Model.Dto.Login;
 using Progress.Model.Dto.SystemManagement;
-using Progress.Repository;
+using Progress.WebApi.Models;
 
 namespace Progress.WebApi.Controllers
 {
@@ -12,92 +12,106 @@ namespace Progress.WebApi.Controllers
     [Authorize]
     public class UsersController : ControllerBase
     {
-        private readonly ProgressDbContext _db;
+        private readonly IUserService _userService;
+        private readonly IWebHostEnvironment _env;
 
-        public UsersController(ProgressDbContext db)
+        public UsersController(IUserService userService, IWebHostEnvironment env)
         {
-            _db = db;
+            _userService = userService;
+            _env = env;
         }
 
         [HttpPost]
         public async Task<ApiResponseData> GetUserData([FromBody] UserGetRequest req)
         {
-            var q = _db.Users!.AsNoTracking().Where(u => u.IsDeleted == 0);
-            if (!string.IsNullOrWhiteSpace(req.employeeNumber))
-                q = q.Where(u => u.EmployeeNumber.Contains(req.employeeNumber));
-            if (!string.IsNullOrWhiteSpace(req.userName))
-                q = q.Where(u => u.UserName.Contains(req.userName));
-            if (req.enable is int en)
-                q = q.Where(u => u.Enable == en);
-
-            var total = await q.CountAsync();
-            var page = Math.Max(1, req.page);
-            var size = Math.Max(1, req.size);
-            var list = await q
-                .OrderBy(u => u.Id)
-                .Skip((page - 1) * size)
-                .Take(size)
-                .Select(u => new UserListRow
-                {
-                    id = u.Id,
-                    employeeNumber = u.EmployeeNumber,
-                    userName = u.UserName,
-                    phoneNumber = u.PhoneNumber,
-                    email = u.Email,
-                    headPortrait = u.HeadPortrait,
-                    enable = u.Enable,
-                    createBy = u.CreateBy,
-                    createTime = u.CreateTime,
-                    updateBy = u.UpdateBy,
-                    updateTime = u.UpdateTime,
-                    isDeleted = u.IsDeleted
-                })
-                .ToListAsync();
-
+            var (total, dataList) = await _userService.GetUserDataAsync(req);
             return new ApiResponseData
             {
                 code = 200,
                 message = "Success!",
-                data = new { total, dataList = list }
+                data = new { total, dataList }
             };
         }
 
-        /// <summary>个人中心：按工号取用户信息（与前端约定一致）。</summary>
         [HttpGet]
         public async Task<ApiResponseData> GetPersonInfo([FromQuery] string employeeNumber)
         {
+            var (ok, message, person) = await _userService.GetPersonInfoAsync(employeeNumber);
+            if (!ok || person == null)
+                return new ApiResponseData { code = 500, message = message };
+            return new ApiResponseData { code = 200, message = "Success!", data = person };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> AddUser([FromBody] UserAddDto body)
+        {
+            var (ok, msg) = await _userService.AddUserAsync(body);
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> UpdateUserData([FromBody] UserUpdateDto body)
+        {
+            var (ok, msg) = await _userService.UpdateUserAsync(body);
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> DeleteUser([FromBody] UserDeleteDto body)
+        {
+            var (ok, msg) = await _userService.DeleteUserAsync(body.id);
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> BatchDelUser([FromBody] List<int> ids)
+        {
+            var (ok, msg) = await _userService.BatchDeleteUsersAsync(ids ?? new List<int>());
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> ChangeStatusOrPassword([FromBody] ResetPwdOrStatusDto body)
+        {
+            var (ok, msg) = await _userService.ResetPwdOrStatusAsync(body);
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        public async Task<ApiResponseData> UpdatePersonanlInfo([FromBody] UpdatePersonalInfoDto body)
+        {
+            var (ok, msg) = await _userService.UpdatePersonalInfoAsync(body);
+            return new ApiResponseData { code = ok ? 200 : 400, message = msg };
+        }
+
+        [HttpPost]
+        [Consumes("multipart/form-data")]
+        public async Task<ApiResponseData> FileupLoad([FromForm] AvatarUploadForm form)
+        {
+            var file = form?.file;
+            var employeeNumber = form?.employeeNumber;
+            if (file == null || file.Length == 0)
+                return new ApiResponseData { code = 400, message = "file required" };
             if (string.IsNullOrWhiteSpace(employeeNumber))
-                return new ApiResponseData { code = 500, message = "employeeNumber required" };
+                return new ApiResponseData { code = 400, message = "employeeNumber required" };
 
-            var u = await _db.Users!.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.EmployeeNumber == employeeNumber && x.IsDeleted == 0);
-            if (u == null)
-                return new ApiResponseData { code = 500, message = "用户不存在" };
+            await _userService.DeleteHeadPortraitAsync(employeeNumber);
 
-            var roleName = await (
-                from ur in _db.UserRoles!
-                join r in _db.Roles! on ur.RoleId equals r.Id
-                where ur.UserId == u.Id
-                orderby r.RoleSort
-                select r.RoleName
-            ).FirstOrDefaultAsync() ?? "";
+            var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrEmpty(ext)) ext = ".png";
+            var name = $"{Guid.NewGuid():N}{ext}";
+            var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+            var dir = Path.Combine(webRoot, "uploads", "avatars");
+            Directory.CreateDirectory(dir);
+            var full = Path.Combine(dir, name);
+            await using (var fs = new FileStream(full, FileMode.Create))
+                await file.CopyToAsync(fs);
 
-            return new ApiResponseData
-            {
-                code = 200,
-                message = "Success!",
-                data = new
-                {
-                    id = u.Id,
-                    employeeNumber = u.EmployeeNumber,
-                    userName = u.UserName,
-                    phoneNumber = u.PhoneNumber,
-                    email = u.Email,
-                    headPortrait = u.HeadPortrait,
-                    roleName,
-                    password = ""
-                }
-            };
+            var relative = $"uploads/avatars/{name}".Replace("\\", "/");
+            var (ok, msg) = await _userService.UpdateHeadPortraitPathAsync(employeeNumber, relative);
+            if (!ok)
+                return new ApiResponseData { code = 400, message = msg };
+            return new ApiResponseData { code = 200, message = msg, data = new { path = relative } };
         }
     }
 }

@@ -96,7 +96,7 @@ const filterDynamicRoutes = (data: any) => {
   data.forEach((item: any) => {
     let e_new: RoutesItem = {
       path: item.path,
-      name: item.name,
+      name: item.name ?? item.Name,
       redirect: item.redirect,
       meta: {
         title: item.meta?.title,
