@@ -19,7 +19,7 @@ namespace Progress.Service.SystemManagement
 
         public async Task<SupplierProfileDto?> GetAsync(CancellationToken ct = default)
         {
-            if (!_current.Roles.Contains("Supplier") || _current.SupplierId is not int sid)
+            if (_current.IsSupplierAccount != 1 || _current.SupplierId is not int sid)
                 return null;
 
             var user = await _db.Users!.AsNoTracking()
@@ -51,7 +51,7 @@ namespace Progress.Service.SystemManagement
 
         public async Task<(bool ok, string message)> UpdateAsync(SupplierProfileUpdateDto dto, CancellationToken ct = default)
         {
-            if (!_current.Roles.Contains("Supplier") || _current.SupplierId is not int sid)
+            if (_current.IsSupplierAccount != 1 || _current.SupplierId is not int sid)
                 return (false, "仅供应商账号可维护资料");
 
             var user = await _db.Users!.FirstOrDefaultAsync(u => u.Id == _current.UserId && u.SupplierId == sid, ct);

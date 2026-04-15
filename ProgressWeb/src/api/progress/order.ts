@@ -14,7 +14,10 @@ export interface OrderLineDto {
   unit?: string
   receivedQuantity?: number
   requiredDeliveryDate?: string
-  latestCraftCode?: string
+  craftRecipeId?: number
+  latestCraftCode?: number
+  /** 服务端解析的工艺名称 */
+  latestCraftName?: string
   vendorUpdatedAt?: string
   vendorEstimatedDeliveryDate?: string
   shippedQuantity?: number

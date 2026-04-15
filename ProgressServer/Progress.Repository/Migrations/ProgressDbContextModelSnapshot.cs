@@ -76,10 +76,8 @@ namespace Progress.Repository.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
+                    b.Property<int>("Code")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -462,6 +460,9 @@ namespace Progress.Repository.Migrations
                     b.Property<DateTime?>("ActualDeliveryDate")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<int?>("CraftRecipeId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("datetime(6)");
 
@@ -470,9 +471,8 @@ namespace Progress.Repository.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("varchar(128)");
 
-                    b.Property<string>("LatestCraftCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
+                    b.Property<int?>("LatestCraftCode")
+                        .HasColumnType("int");
 
                     b.Property<int>("LineNo")
                         .HasColumnType("int");
@@ -543,6 +543,8 @@ namespace Progress.Repository.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CraftRecipeId");
 
                     b.HasIndex("SupplierId");
 
@@ -639,11 +641,17 @@ namespace Progress.Repository.Migrations
 
             modelBuilder.Entity("Progress.Model.Entitys.WorkpieceOrderLine", b =>
                 {
+                    b.HasOne("Progress.Model.Entitys.CraftRecipe", "CraftRecipe")
+                        .WithMany()
+                        .HasForeignKey("CraftRecipeId");
+
                     b.HasOne("Progress.Model.Entitys.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CraftRecipe");
 
                     b.Navigation("Supplier");
                 });

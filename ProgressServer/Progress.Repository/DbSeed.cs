@@ -47,7 +47,7 @@ namespace Progress.Repository
             {
                 Id = 1,
                 SupplierNumber = "1001",
-                Name = "示例供应商"
+                Name = "供应商A"
             };
             db.Suppliers!.Add(supplier);
 
@@ -373,7 +373,14 @@ namespace Progress.Repository
             // Supplier：订单记录（根 + 页）
             mr(26, 6, 3); mr(27, 7, 3);
 
-            db.Crafts!.Add(new Craft { Id = 1, Code = "C1", Name = "示例工艺", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 1, Code = 1, Name = "下料", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 2, Code = 2, Name = "粗加工", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 3, Code = 3, Name = "精加工", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 4, Code = 4, Name = "热处理", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 5, Code = 5, Name = "表面处理", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 6, Code = 6, Name = "焊接", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 7, Code = 7, Name = "折弯", RecipeBody = "[]" });
+            db.Crafts!.Add(new Craft { Id = 8, Code = 8, Name = "检验", RecipeBody = "[]" });
             var recipe = new CraftRecipe { Id = 1, Code = 1, Name = "默认配方" };
             db.CraftRecipes!.Add(recipe);
             db.CraftRecipeSteps!.Add(new CraftRecipeStep
@@ -383,6 +390,56 @@ namespace Progress.Repository
                 CraftId = 1,
                 StepOrder = 1
             });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 2,
+                CraftRecipeId = 1,
+                CraftId = 2,
+                StepOrder = 2
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 3,
+                CraftRecipeId = 1,
+                CraftId = 3,
+                StepOrder = 3
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 4,
+                CraftRecipeId = 1,
+                CraftId = 4,
+                StepOrder = 4
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 5,
+                CraftRecipeId = 1,
+                CraftId = 5,
+                StepOrder = 5
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 6,
+                CraftRecipeId = 1,
+                CraftId = 6,
+                StepOrder = 6
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 7,
+                CraftRecipeId = 1,
+                CraftId = 7,
+                StepOrder = 7
+            });
+            db.CraftRecipeSteps!.Add(new CraftRecipeStep
+            {
+                Id = 8,
+                CraftRecipeId = 1,
+                CraftId = 8,
+                StepOrder = 8
+            });
+
 
             db.AlertSettings!.Add(new AlertSetting { Id = 1, LeadDays = 3, Enabled = true });
 
@@ -399,7 +456,8 @@ namespace Progress.Repository
                 ShippedQuantity = 10,
                 Unit = "件",
                 RequiredDeliveryDate = DateTime.UtcNow.AddDays(5),
-                LatestCraftCode = "C1",
+                CraftRecipeId = 1,
+                LatestCraftCode = 1,
                 ShippingStatus = OrderShippingStatus.NotShipped,
                 CreateTime = DateTime.UtcNow
             });

@@ -37,12 +37,12 @@ namespace Progress.WebApi.Controllers
         [Authorize]
         public async Task<ApiResponseData> Info([FromBody] LoginRequestData data)
         {
-            var (username, roles) = await _auth.GetInfoAsync(data.EmployeeNumber);
+            var (username, roles, isSupplierAccount, supplierId) = await _auth.GetInfoAsync(data.EmployeeNumber);
             return new ApiResponseData
             {
                 code = 200,
                 message = "Success!",
-                data = new { username, roles }
+                data = new { username, roles, isSupplierAccount, supplierId }
             };
         }
 

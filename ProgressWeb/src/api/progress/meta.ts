@@ -6,3 +6,31 @@ export function getSuppliersMetaApi() {
     method: "get"
   })
 }
+
+export interface CraftRecipeLiteDto {
+  id: number
+  code: number
+  name: string
+}
+
+export interface CraftInRecipeStepDto {
+  craftId: number
+  craftCode: number
+  craftName: string
+  stepOrder: number
+}
+
+export function getCraftRecipesMetaApi() {
+  return request<{ data: CraftRecipeLiteDto[] }>({
+    url: "/api/Meta/CraftRecipes",
+    method: "get"
+  })
+}
+
+export function getCraftRecipeCraftsMetaApi(craftRecipeId: number) {
+  return request<{ data: CraftInRecipeStepDto[] }>({
+    url: "/api/Meta/CraftRecipeCrafts",
+    method: "get",
+    params: { craftRecipeId }
+  })
+}

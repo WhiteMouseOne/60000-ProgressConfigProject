@@ -41,6 +41,7 @@ builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICraftAdminService, CraftAdminService>();
+builder.Services.AddScoped<ICraftRecipeAdminService, CraftRecipeAdminService>();
 builder.Services.AddScoped<IOrderLineService, OrderLineService>();
 builder.Services.AddScoped<IRepairService, RepairService>();
 builder.Services.AddScoped<IHomeStatsService, HomeStatsService>();

@@ -27,7 +27,12 @@ namespace Progress.Model.Entitys
 
         public DateTime? RequiredDeliveryDate { get; set; }
 
-        [MaxLength(64)] public string? LatestCraftCode { get; set; }
+        /// <summary>关联工艺配方；与 <see cref="LatestCraftCode"/> 共同约束「最新工艺」须为该配方步序中的工艺。</summary>
+        public int? CraftRecipeId { get; set; }
+        [ForeignKey(nameof(CraftRecipeId))] public CraftRecipe? CraftRecipe { get; set; }
+
+        /// <summary>当前最新工艺的业务编码，对应 <see cref="Craft.Code"/>。</summary>
+        public int? LatestCraftCode { get; set; }
         public DateTime? VendorUpdatedAt { get; set; }
         public DateTime? VendorEstimatedDeliveryDate { get; set; }
 

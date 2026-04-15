@@ -33,6 +33,57 @@ namespace Progress.Service.Business
                 throw new InvalidOperationException("PO 编号格式不符合配置规则");
         }
 
+        /// <summary>校验 LatestCraftCode 对应工艺存在；若指定配方则须在该配方步序中。</summary>
+        private async Task ValidateLatestCraftInRecipeAsync(int? craftRecipeId, int? latestCraftCode, CancellationToken ct)
+        {
+            if (latestCraftCode is not { } code) return;
+            var craft = await _db.Crafts!.AsNoTracking().FirstOrDefaultAsync(c => c.Code == code, ct);
+            if (craft == null) throw new InvalidOperationException($"工艺编码不存在: {code}");
+            if (craftRecipeId is not { } rid) return;
+            var inRecipe = await _db.CraftRecipeSteps!.AnyAsync(s => s.CraftRecipeId == rid && s.CraftId == craft.Id, ct);
+            if (!inRecipe) throw new InvalidOperationException("所选「最新工艺」不属于当前工艺配方步序");
+        }
+
+        private async Task FillLatestCraftNamesAsync(IList<OrderLineDto> items, CancellationToken ct)
+        {
+            if (items.Count == 0) return;
+            var codes = items.Where(i => i.LatestCraftCode.HasValue).Select(i => i.LatestCraftCode!.Value).Distinct().ToList();
+            if (codes.Count == 0) return;
+            var crafts = await _db.Crafts!.AsNoTracking()
+                .Where(c => codes.Contains(c.Code))
+                .ToDictionaryAsync(c => c.Code, c => new { c.Id, c.Name }, ct);
+            var recipeIds = items.Where(i => i.CraftRecipeId != null).Select(i => i.CraftRecipeId!.Value).Distinct().ToList();
+            HashSet<(int RecipeId, int CraftId)>? stepSet = null;
+            if (recipeIds.Count > 0)
+            {
+                var steps = await _db.CraftRecipeSteps!.AsNoTracking()
+                    .Where(s => recipeIds.Contains(s.CraftRecipeId))
+                    .Select(s => new { s.CraftRecipeId, s.CraftId })
+                    .ToListAsync(ct);
+                stepSet = steps.Select(s => (s.CraftRecipeId, s.CraftId)).ToHashSet();
+            }
+
+            foreach (var item in items)
+            {
+                if (!item.LatestCraftCode.HasValue || !crafts.TryGetValue(item.LatestCraftCode.Value, out var cr))
+                {
+                    item.LatestCraftName = null;
+                    continue;
+                }
+
+                if (item.CraftRecipeId == null)
+                {
+                    item.LatestCraftName = cr.Name;
+                    continue;
+                }
+
+                if (stepSet != null && stepSet.Contains((item.CraftRecipeId.Value, cr.Id)))
+                    item.LatestCraftName = cr.Name;
+                else
+                    item.LatestCraftName = null;
+            }
+        }
+
         public async Task<PagedResult<OrderLineDto>> QueryAsync(OrderLineQuery query, CancellationToken ct = default)
         {
             var q = _scope.FilteredOrderLines();
@@ -67,6 +118,7 @@ namespace Progress.Service.Business
                     Unit = x.Unit,
                     ReceivedQuantity = x.ReceivedQuantity,
                     RequiredDeliveryDate = x.RequiredDeliveryDate,
+                    CraftRecipeId = x.CraftRecipeId,
                     LatestCraftCode = x.LatestCraftCode,
                     VendorUpdatedAt = x.VendorUpdatedAt,
                     VendorEstimatedDeliveryDate = x.VendorEstimatedDeliveryDate,
@@ -81,6 +133,7 @@ namespace Progress.Service.Business
                     CreateTime = x.CreateTime
                 })
                 .ToListAsync(ct);
+            await FillLatestCraftNamesAsync(items, ct);
             return new PagedResult<OrderLineDto> { Items = items, Total = total };
         }
 
@@ -90,7 +143,7 @@ namespace Progress.Service.Business
             var x = await _db.WorkpieceOrderLines!.AsNoTracking().Include(s => s.Supplier)
                 .FirstOrDefaultAsync(l => l.Id == id, ct);
             if (x == null) return null;
-            return new OrderLineDto
+            var dto = new OrderLineDto
             {
                 Id = x.Id,
                 LineNo = x.LineNo,
@@ -105,6 +158,7 @@ namespace Progress.Service.Business
                 Unit = x.Unit,
                 ReceivedQuantity = x.ReceivedQuantity,
                 RequiredDeliveryDate = x.RequiredDeliveryDate,
+                CraftRecipeId = x.CraftRecipeId,
                 LatestCraftCode = x.LatestCraftCode,
                 VendorUpdatedAt = x.VendorUpdatedAt,
                 VendorEstimatedDeliveryDate = x.VendorEstimatedDeliveryDate,
@@ -118,6 +172,8 @@ namespace Progress.Service.Business
                 RepairShippedAt = x.RepairShippedAt,
                 CreateTime = x.CreateTime
             };
+            await FillLatestCraftNamesAsync(new List<OrderLineDto> { dto }, ct);
+            return dto;
         }
 
         public async Task<int> CreateAsync(OrderLineCreateOrEdit input, CancellationToken ct = default)
@@ -127,6 +183,9 @@ namespace Progress.Service.Business
             ValidatePo(input.PoNumber);
             if (!await _db.Suppliers!.AnyAsync(s => s.Id == input.SupplierId, ct))
                 throw new InvalidOperationException("供应商不存在");
+            if (input.CraftRecipeId is { } newRid && !await _db.CraftRecipes!.AnyAsync(r => r.Id == newRid, ct))
+                throw new InvalidOperationException("工艺配方不存在");
+            await ValidateLatestCraftInRecipeAsync(input.CraftRecipeId, input.LatestCraftCode, ct);
             var maxNo = await _db.WorkpieceOrderLines!.Where(x => x.PoNumber == input.PoNumber)
                 .MaxAsync(x => (int?)x.LineNo, ct) ?? 0;
             var line = new WorkpieceOrderLine
@@ -142,8 +201,9 @@ namespace Progress.Service.Business
                 Unit = input.Unit,
                 ReceivedQuantity = input.ReceivedQuantity,
                 RequiredDeliveryDate = input.RequiredDeliveryDate,
+                CraftRecipeId = input.CraftRecipeId,
                 LatestCraftCode = input.LatestCraftCode,
-                ShippedQuantity = input.Quantity,
+                ShippedQuantity = null,
                 ShippingStatus = OrderShippingStatus.NotFilled,
                 SupplierNotes = input.SupplierNotes,
                 ActualDeliveryDate = input.ActualDeliveryDate,
@@ -163,6 +223,9 @@ namespace Progress.Service.Business
             var line = await _db.WorkpieceOrderLines!.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (line == null) return false;
             ValidatePo(input.PoNumber);
+            if (input.CraftRecipeId is { } rid && !await _db.CraftRecipes!.AnyAsync(r => r.Id == rid, ct))
+                throw new InvalidOperationException("工艺配方不存在");
+            await ValidateLatestCraftInRecipeAsync(input.CraftRecipeId, input.LatestCraftCode, ct);
             line.PoNumber = input.PoNumber.Trim();
             line.ProjectCode = input.ProjectCode.Trim();
             line.DrawingNumber = input.DrawingNumber.Trim();
@@ -173,6 +236,7 @@ namespace Progress.Service.Business
             line.Unit = input.Unit;
             line.ReceivedQuantity = input.ReceivedQuantity;
             line.RequiredDeliveryDate = input.RequiredDeliveryDate;
+            line.CraftRecipeId = input.CraftRecipeId;
             line.LatestCraftCode = input.LatestCraftCode;
             line.ShippingStatus = input.ShippingStatus;
             line.SupplierNotes = input.SupplierNotes;
@@ -196,7 +260,7 @@ namespace Progress.Service.Business
 
         public async Task<bool> SupplierUpdateAsync(int id, SupplierLineUpdate input, CancellationToken ct = default)
         {
-            if (!_user.Roles.Contains("Supplier")) throw new UnauthorizedAccessException();
+            if (_user.IsSupplierAccount != 1) throw new UnauthorizedAccessException();
             if (!await _scope.CanAccessLineAsync(id, ct)) return false;
             var line = await _db.WorkpieceOrderLines!.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (line == null) return false;
@@ -206,7 +270,11 @@ namespace Progress.Service.Business
                 throw new InvalidOperationException("当前无返修任务，请等待监督方发起返修后再填写返修日期");
 
             if (input.SupplierNotes != null) line.SupplierNotes = input.SupplierNotes;
-            if (input.LatestCraftCode != null) line.LatestCraftCode = input.LatestCraftCode;
+            if (input.LatestCraftCode.HasValue)
+            {
+                await ValidateLatestCraftInRecipeAsync(line.CraftRecipeId, input.LatestCraftCode, ct);
+                line.LatestCraftCode = input.LatestCraftCode;
+            }
             if (input.VendorEstimatedDeliveryDate.HasValue)
                 line.VendorEstimatedDeliveryDate = input.VendorEstimatedDeliveryDate.Value.Date;
             if (input.ShippedQuantity.HasValue) line.ShippedQuantity = input.ShippedQuantity.Value;

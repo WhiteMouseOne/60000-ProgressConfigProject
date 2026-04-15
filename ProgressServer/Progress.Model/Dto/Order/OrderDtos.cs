@@ -26,7 +26,10 @@ namespace Progress.Model.Dto.Order
         public string? Unit { get; set; }
         public int? ReceivedQuantity { get; set; }
         public DateTime? RequiredDeliveryDate { get; set; }
-        public string? LatestCraftCode { get; set; }
+        public int? CraftRecipeId { get; set; }
+        public int? LatestCraftCode { get; set; }
+        /// <summary>由服务端根据配方步序与 LatestCraftCode 解析的工艺名称。</summary>
+        public string? LatestCraftName { get; set; }
         public DateTime? VendorUpdatedAt { get; set; }
         public DateTime? VendorEstimatedDeliveryDate { get; set; }
         public decimal? ShippedQuantity { get; set; }
@@ -53,7 +56,8 @@ namespace Progress.Model.Dto.Order
         public string? Unit { get; set; }
         public int? ReceivedQuantity { get; set; }
         public DateTime? RequiredDeliveryDate { get; set; }
-        public string? LatestCraftCode { get; set; }
+        public int? CraftRecipeId { get; set; }
+        public int? LatestCraftCode { get; set; }
         public int ShippingStatus { get; set; }
         public string? SupplierNotes { get; set; }
         public DateTime? ActualDeliveryDate { get; set; }
@@ -62,7 +66,7 @@ namespace Progress.Model.Dto.Order
     public class SupplierLineUpdate
     {
         public string? SupplierNotes { get; set; }
-        public string? LatestCraftCode { get; set; }
+        public int? LatestCraftCode { get; set; }
         public int? ShippingStatus { get; set; }
         public DateTime? ActualDeliveryDate { get; set; }
         public DateTime? VendorEstimatedDeliveryDate { get; set; }

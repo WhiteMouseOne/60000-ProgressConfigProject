@@ -62,6 +62,37 @@ export function getCraftListAdminApi() {
   })
 }
 
+export function queryCraftAdminApi(data: { page: number; pageSize: number; name?: string }) {
+  return request({
+    url: "/api/CraftAdmin/Query",
+    method: "post",
+    data
+  })
+}
+
+export function createCraftAdminApi(data: { code: number; name: string; recipeBody?: string | null }) {
+  return request({
+    url: "/api/CraftAdmin/Create",
+    method: "post",
+    data
+  })
+}
+
+export function updateCraftAdminApi(id: number, data: { code: number; name: string; recipeBody?: string | null }) {
+  return request({
+    url: `/api/CraftAdmin/Update/${id}`,
+    method: "post",
+    data
+  })
+}
+
+export function deleteCraftAdminApi(id: number) {
+  return request({
+    url: `/api/CraftAdmin/Delete/${id}`,
+    method: "post"
+  })
+}
+
 export function getAlertConfigApi() {
   return request({
     url: "/api/AlertConfig/Get",
@@ -74,5 +105,37 @@ export function saveAlertConfigApi(data: { id: number; leadDays: number; enabled
     url: "/api/AlertConfig/Save",
     method: "post",
     data
+  })
+}
+
+export function queryCraftRecipeAdminApi(data:{page:number;pageSize:number;name?:string}){
+  return request({
+    url:"/api/CraftRecipeAdmin/Query",
+    method:"post",
+    data
+  })
+}
+
+export function createCraftRecipeAdminApi(data:{code:number,name:string}){
+  return request({
+    url:"/api/CraftRecipeAdmin/Create",
+    method:"post",
+    data
+  })
+}
+
+export function updateCraftRecipeAdminApi(id:number,data:{code:number;name:string}){
+  return request({
+    url:`/api/CraftRecipeAdmin/Update/${id}`,
+    method:"post",
+    data
+  })
+}
+
+
+export function deleteCraftRecipeAdminApi(id: number) {
+  return request({
+    url: `/api/CraftRecipeAdmin/Delete/${id}`,
+    method: "post"
   })
 }

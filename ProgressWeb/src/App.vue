@@ -23,7 +23,7 @@ onMounted(() => {
 const { initTheme } = useTheme()
 
 //网页标题
-document.title = "LineMES"
+document.title = "加工件过程管理系统"
 
 /** 初始化主题 */
 initTheme()

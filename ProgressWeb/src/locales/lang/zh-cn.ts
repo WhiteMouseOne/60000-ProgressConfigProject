@@ -283,7 +283,14 @@ export default {
     batchDeleteConfirm: "确定要删除吗",
     pleaseSelectUser: "请选择要删除的用户",
     closeConfirm: "确定关闭吗?",
-    pleaseFillComplete: "请填写完整信息"
+    pleaseFillComplete: "请填写完整信息",
+    supplierAccountCol: "是否供应商账号",
+    supplierTagYes: "[是]",
+    supplierTagNo: "[否]",
+    supplierAccountLabel: "供应商账号",
+    bindSupplierLabel: "绑定供应商",
+    selectSupplier: "请选择供应商",
+    supplierRequired: "供应商账号必须选择供应商"
   },
 // 系统管理 - 菜单管理
   systemMenu: {

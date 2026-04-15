@@ -24,7 +24,7 @@ namespace Progress.Service.Business
 
             if (_user.Roles.Contains("Supervisor")) return q;
 
-            if (_user.Roles.Contains("Supplier") && _user.SupplierId is { } sid)
+            if (_user.IsSupplierAccount == 1 && _user.SupplierId is { } sid)
                 return q.Where(x => x.SupplierId == sid);
 
             return q.Where(x => false);

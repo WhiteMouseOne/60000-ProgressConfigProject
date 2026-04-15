@@ -10,6 +10,9 @@ namespace Progress.Model.Dto.SystemManagement
         public string? email { get; set; }
         public string? enable { get; set; }
         public string? createBy { get; set; }
+        /// <summary>0 普通账号，1 供应商账号。</summary>
+        public int isSupplierAccount { get; set; }
+        public int? supplierId { get; set; }
     }
 
     public class UserUpdateDto
@@ -23,6 +26,8 @@ namespace Progress.Model.Dto.SystemManagement
         public string? email { get; set; }
         public string? enable { get; set; }
         public string? updateBy { get; set; }
+        public int isSupplierAccount { get; set; }
+        public int? supplierId { get; set; }
     }
 
     public class UserDeleteDto

@@ -33,5 +33,31 @@ namespace Progress.Service.SystemManagement
             }
             return new List<SupplierLiteDto>();
         }
+
+        public async Task<List<CraftRecipeLiteDto>> GetCraftRecipesAsync(CancellationToken ct = default)
+        {
+            return await _db.CraftRecipes!.AsNoTracking().OrderBy(x => x.Code)
+                .Select(x => new CraftRecipeLiteDto { Id = x.Id, Code = x.Code, Name = x.Name })
+                .ToListAsync(ct);
+        }
+
+        public async Task<List<CraftInRecipeStepDto>> GetCraftRecipeCraftsAsync(int craftRecipeId, CancellationToken ct = default)
+        {
+            if (!await _db.CraftRecipes!.AsNoTracking().AnyAsync(r => r.Id == craftRecipeId, ct))
+                return new List<CraftInRecipeStepDto>();
+
+            return await (
+                from s in _db.CraftRecipeSteps!.AsNoTracking()
+                join c in _db.Crafts!.AsNoTracking() on s.CraftId equals c.Id
+                where s.CraftRecipeId == craftRecipeId
+                orderby s.StepOrder
+                select new CraftInRecipeStepDto
+                {
+                    CraftId = c.Id,
+                    CraftCode = c.Code,
+                    CraftName = c.Name,
+                    StepOrder = s.StepOrder
+                }).ToListAsync(ct);
+        }
     }
 }

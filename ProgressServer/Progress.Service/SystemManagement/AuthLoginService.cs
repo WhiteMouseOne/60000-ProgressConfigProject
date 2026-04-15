@@ -36,17 +36,18 @@ namespace Progress.Service.SystemManagement
             return (true, "Login success", new { token });
         }
 
-        public async Task<(string username, List<string> roles)> GetInfoAsync(string employeeNumber)
+        public async Task<(string username, List<string> roles, int isSupplierAccount, int? supplierId)> GetInfoAsync(string employeeNumber)
         {
             var user = await _db.Users!.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.EmployeeNumber == employeeNumber && u.IsDeleted == 0);
-            if (user == null) return ("", new List<string>());
+            if (user == null) return ("", new List<string>(), 0, null);
             var roles = await (
-                from ur in _db.UserRoles
-                join r in _db.Roles on ur.RoleId equals r.Id
+                from ur in _db.UserRoles!
+                join r in _db.Roles! on ur.RoleId equals r.Id
                 where ur.UserId == user.Id
                 select r.RoleName!).ToListAsync();
-            return (user.UserName, roles.Where(x => x != null).Cast<string>().ToList());
+            var list = roles.Where(x => x != null).Cast<string>().ToList();
+            return (user.UserName, list, user.IsSupplierAccount, user.SupplierId);
         }
 
         public async Task<List<DynamicRoutes>> GetDynamicRoutesAsync()

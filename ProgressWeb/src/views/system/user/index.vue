@@ -68,6 +68,11 @@
             :label="item.label"
             show-overflow-tooltip
           />
+          <el-table-column :label="$t('systemUser.supplierAccountCol')" align="center" width="120">
+            <template #default="{ row }">
+              <span>{{ row.isSupplierAccount === 1 ? $t('systemUser.supplierTagYes') : $t('systemUser.supplierTagNo') }}</span>
+            </template>
+          </el-table-column>
           <el-table-column :label="$t('user.status')" align="center" width="90" prop="isEnable">
             <template #default="{ row }">
               <el-switch
@@ -154,6 +159,31 @@
       </el-row>
       <el-row>
         <el-col :lg="12">
+          <el-form-item :label="$t('systemUser.supplierAccountLabel')" prop="isSupplierAccount">
+            <el-switch
+              v-model="formUserd.isSupplierAccount"
+              :active-value="1"
+              :inactive-value="0"
+              @change="(v: string | number | boolean) => { if (v !== 1) formUserd.supplierId = undefined }"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col v-if="formUserd.isSupplierAccount === 1" :lg="12">
+          <el-form-item :label="$t('systemUser.bindSupplierLabel')" prop="supplierId">
+            <el-select
+              v-model="formUserd.supplierId"
+              filterable
+              clearable
+              style="width: 100%"
+              :placeholder="$t('systemUser.selectSupplier')"
+            >
+              <el-option v-for="s in supplierOptions" :key="s.id" :label="s.name" :value="s.id" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row>
+        <el-col :lg="12">
           <el-form-item :label="$t('systemUser.phoneLabel')" prop="phoneNumber">
             <!-- spellcheck关闭语法检查 -->
             <el-input v-model="formUserd.phoneNumber" spellcheck="false" :placeholder="$t('systemUser.enterPhone')" clearable />
@@ -196,6 +226,7 @@ import {
   batchDelUserApi,
   changeStatusOrPasswordApi
 } from "@/api/system/sys-user"
+import { getSupplierListAdminApi } from "@/api/progress/system"
 import { getRoleListApi, getRoleByIdApi } from "@/api/system/sys-role"
 import { getPageSize, setPageSize } from "@/utils/cache/local-storage"
 
@@ -213,7 +244,7 @@ interface User {
   size: number
   userName: string
   employeeNumber: string
-  enable: any
+  enable?: number
 }
 /**用户表格数据 */
 const userTableData = ref()
@@ -278,8 +309,7 @@ const userConfig = reactive<User>({
   page: 1,
   size: 10,
   userName: "",
-  employeeNumber: "",
-  enable: ""
+  employeeNumber: ""
 })
 /**绑定搜索关键字 */
 const searchFormInline = reactive({
@@ -306,6 +336,7 @@ onMounted(() => {
   calculateTableHeight()
   window.addEventListener("resize", calculateTableHeight)
   getUserData(userConfig)
+  loadSupplierOptions()
 })
 onActivated(() => {
   if (!isMounted.value) {
@@ -335,6 +366,16 @@ onBeforeUnmount(() => {
 // #region 表格操作
 /**可分配的角色数据信息 */
 const roleList = ref()
+/** 供应商下拉（管理员接口） */
+const supplierOptions = ref<{ id: number; supplierNumber: string; name: string }[]>([])
+const loadSupplierOptions = async () => {
+  try {
+    const res: any = await getSupplierListAdminApi()
+    supplierOptions.value = res?.data ?? []
+  } catch {
+    supplierOptions.value = []
+  }
+}
 /**保存批量删除的id */
 let ids = reactive([]) as any
 /**分页跳转 */
@@ -353,7 +394,7 @@ const handleSizeChange = (val: number) => {
 const handleSearch = () => {
   userConfig.userName = searchFormInline.userName
   userConfig.employeeNumber = searchFormInline.employeeNumber
-  userConfig.enable = searchFormInline.enable === "true" ? 1 : searchFormInline.enable === "false" ? 0 : ""
+  userConfig.enable = searchFormInline.enable === "true" ? 1 : searchFormInline.enable === "false" ? 0 : undefined
   // userConfig.page = 1
   getUserData(userConfig)
 }
@@ -364,8 +405,7 @@ const resetUserConfig = () => {
   Object.assign(userConfig, {
     page: 1,
     userName: "",
-    employeeNumber: "",
-    enable: ""
+    employeeNumber: ""
   } as User)
 }
 /**重置搜索表单内容 */
@@ -385,7 +425,14 @@ const resetSearch = () => {
 
 /**获取用户列表数据 */
 const getUserData = async (userConfig: User) => {
-  const res: any = await getUserDataApi(userConfig)
+  const req = {
+    page: userConfig.page,
+    size: userConfig.size,
+    userName: userConfig.userName || undefined,
+    employeeNumber: userConfig.employeeNumber || undefined,
+    enable: userConfig.enable
+  }
+  const res: any = await getUserDataApi(req)
   console.log("%c [ userres ]-267", "font-size:13px; background:pink; color:#bf2c9f;", res)
   if (res) {
     // const rulesMap = {
@@ -397,6 +444,8 @@ const getUserData = async (userConfig: User) => {
       userTableData.value = res.data.dataList.map((item: any) => {
         item.enable = item.enable === 1 ? true : false
         if (item.email == null && item.Email != null) item.email = item.Email
+        const isa = item.isSupplierAccount ?? item.IsSupplierAccount
+        item.isSupplierAccount = isa === 1 || isa === true ? 1 : 0
         return item
       })
     } else {
@@ -491,6 +540,9 @@ const handleEdit = async (row: any) => {
       } else {
         ElMessage.error("用戶角色被删除请重新选择")
       }
+      const isa = (row as any).isSupplierAccount ?? (row as any).IsSupplierAccount
+      formUserd.isSupplierAccount = isa === 1 || isa === true ? 1 : 0
+      formUserd.supplierId = (row as any).supplierId ?? (row as any).SupplierId ?? undefined
       //
       // res.data.roleIds.map((item: any) => {
       //   formUserd.roleIds = item
@@ -578,7 +630,9 @@ const formUserd = reactive({
   enable: "",
   // 默认密码
   password: "123456",
-  roleIds: [] as any
+  roleIds: [] as any,
+  isSupplierAccount: 0 as 0 | 1,
+  supplierId: undefined as number | undefined
 })
 /**重置表单数据，防止数据回显 */
 const resetFormUserd = () => {
@@ -591,7 +645,9 @@ const resetFormUserd = () => {
     enable: "",
     // 默认密码
     password: "123456",
-    roleIds: ""
+    roleIds: "",
+    isSupplierAccount: 0,
+    supplierId: undefined
   })
 }
 /**表单校验 */
@@ -613,6 +669,22 @@ const rules = reactive({
         callback(ok ? undefined : new Error(i18n.global.t("systemUser.emailInvalid")))
       },
       trigger: "blur"
+    }
+  ],
+  supplierId: [
+    {
+      validator: (_rule: unknown, value: unknown, callback: (e?: Error) => void) => {
+        if (formUserd.isSupplierAccount !== 1) {
+          callback()
+          return
+        }
+        if (value === null || value === undefined || value === "") {
+          callback(new Error(i18n.global.t("systemUser.supplierRequired")))
+          return
+        }
+        callback()
+      },
+      trigger: "change"
     }
   ]
 })
@@ -655,7 +727,9 @@ const onSubmit = () => {
           phoneNumber: formUserd.phoneNumber,
           email: formUserd.email?.trim() || null,
           enable: formUserd.enable,
-          createBy: currentUser
+          createBy: currentUser,
+          isSupplierAccount: formUserd.isSupplierAccount,
+          supplierId: formUserd.isSupplierAccount === 1 ? (formUserd.supplierId ?? null) : null
         })
         // await只会返回给他最近的async回调函数！！！否则报错
         const res: any = await addUserApi(formUserdAdd)
@@ -685,7 +759,9 @@ const onSubmit = () => {
           phoneNumber: formUserd.phoneNumber,
           email: formUserd.email?.trim() || null,
           enable: formUserd.enable,
-          updateBy: currentUser
+          updateBy: currentUser,
+          isSupplierAccount: formUserd.isSupplierAccount,
+          supplierId: formUserd.isSupplierAccount === 1 ? (formUserd.supplierId ?? null) : null
         })
         const res: any = await updateUserDataApi(formUserdEdit)
         if (res) {

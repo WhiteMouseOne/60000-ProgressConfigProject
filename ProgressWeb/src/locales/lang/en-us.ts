@@ -276,7 +276,14 @@ export default {
     batchDeleteConfirm: "Are you sure to delete?",
     pleaseSelectUser: "Please select users to delete",
     closeConfirm: "Are you sure to close?",
-    pleaseFillComplete: "Please fill in complete information"
+    pleaseFillComplete: "Please fill in complete information",
+    supplierAccountCol: "Supplier account",
+    supplierTagYes: "[Yes]",
+    supplierTagNo: "[No]",
+    supplierAccountLabel: "Supplier account",
+    bindSupplierLabel: "Bind supplier",
+    selectSupplier: "Select supplier",
+    supplierRequired: "Supplier account must select a supplier"
   },
 // 系统管理 - 菜单管理
   systemMenu: {

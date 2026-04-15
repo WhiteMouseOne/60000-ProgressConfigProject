@@ -46,7 +46,9 @@ namespace Progress.Service.SystemManagement
                     createTime = u.CreateTime,
                     updateBy = u.UpdateBy,
                     updateTime = u.UpdateTime,
-                    isDeleted = u.IsDeleted
+                    isDeleted = u.IsDeleted,
+                    isSupplierAccount = u.IsSupplierAccount,
+                    supplierId = u.SupplierId
                 })
                 .ToListAsync(ct);
 
@@ -93,6 +95,10 @@ namespace Progress.Service.SystemManagement
             if (await _db.Users!.AnyAsync(u => u.EmployeeNumber == emp && u.IsDeleted == 0, ct))
                 return (false, "工号已存在");
 
+            var flag = dto.isSupplierAccount != 0 ? 1 : 0;
+            var (ok, msg, supplierId) = await ValidateSupplierAccountAsync(flag, dto.supplierId, ct);
+            if (!ok) return (false, msg!);
+
             var enable = ParseEnableString(dto.enable);
             var now = DateTime.UtcNow;
             var user = new Users
@@ -106,8 +112,8 @@ namespace Progress.Service.SystemManagement
                 CreateBy = dto.createBy,
                 CreateTime = now,
                 IsDeleted = 0,
-                IsSupplierAccount = 0,
-                SupplierId = null
+                IsSupplierAccount = flag,
+                SupplierId = supplierId
             };
             _db.Users!.Add(user);
             await _db.SaveChangesAsync(ct);
@@ -126,6 +132,10 @@ namespace Progress.Service.SystemManagement
             if (await _db.Users!.AnyAsync(u => u.EmployeeNumber == emp && u.Id != dto.id && u.IsDeleted == 0, ct))
                 return (false, "工号已存在");
 
+            var flag = dto.isSupplierAccount != 0 ? 1 : 0;
+            var (vok, vmsg, supplierId) = await ValidateSupplierAccountAsync(flag, dto.supplierId, ct);
+            if (!vok) return (false, vmsg!);
+
             user.EmployeeNumber = emp;
             user.UserName = dto.userName?.Trim() ?? "";
             user.Password = dto.password;
@@ -134,6 +144,8 @@ namespace Progress.Service.SystemManagement
             user.Enable = ParseEnableString(dto.enable);
             user.UpdateBy = dto.updateBy;
             user.UpdateTime = DateTime.UtcNow;
+            user.IsSupplierAccount = flag;
+            user.SupplierId = supplierId;
 
             await _db.SaveChangesAsync(ct);
             await SyncUserRoleAsync(user.Id, dto.roleIds, ct);
@@ -266,6 +278,21 @@ namespace Progress.Service.SystemManagement
             var t = s.Trim();
             if (t == "1" || t.Equals("true", StringComparison.OrdinalIgnoreCase)) return 1;
             return 0;
+        }
+
+        /// <summary>供应商账号须绑定有效供应商；非供应商清空 SupplierId。菜单权限由角色单独配置。</summary>
+        private async Task<(bool ok, string? message, int? supplierId)> ValidateSupplierAccountAsync(
+            int isSupplierAccount, int? supplierId, CancellationToken ct)
+        {
+            if (isSupplierAccount == 0)
+                return (true, null, null);
+
+            if (!supplierId.HasValue)
+                return (false, "供应商账号必须选择供应商", null);
+            if (!await _db.Suppliers!.AnyAsync(s => s.Id == supplierId.Value, ct))
+                return (false, "供应商不存在", null);
+
+            return (true, null, supplierId.Value);
         }
 
         private async Task SyncUserRoleAsync(int userId, int roleId, CancellationToken ct)

@@ -10,12 +10,19 @@ import {
   createRepairApi,
   type OrderLineDto
 } from "@/api/progress/order"
-import { getSuppliersMetaApi } from "@/api/progress/meta"
+import {
+  getSuppliersMetaApi,
+  getCraftRecipesMetaApi,
+  getCraftRecipeCraftsMetaApi,
+  type CraftRecipeLiteDto,
+  type CraftInRecipeStepDto
+} from "@/api/progress/meta"
+import { storeToRefs } from "pinia"
 import { useUserStore } from "@/store/modules/user"
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from "element-plus"
 
 const userStore = useUserStore()
-const roles = computed(() => userStore.roles)
+const { roles, isSupplierAccount } = storeToRefs(userStore)
 
 const loading = ref(false)
 const tableData = ref<OrderLineDto[]>([])
@@ -31,6 +38,9 @@ const query = reactive({
 })
 
 const suppliers = ref<{ id: number; supplierNumber: string; name: string }[]>([])
+const craftRecipes = ref<CraftRecipeLiteDto[]>([])
+const craftsForEdit = ref<CraftInRecipeStepDto[]>([])
+const craftsForSupplier = ref<CraftInRecipeStepDto[]>([])
 
 const loadSuppliers = async () => {
   try {
@@ -38,6 +48,32 @@ const loadSuppliers = async () => {
     suppliers.value = (res as any).data ?? []
   } catch {
     /* ignore */
+  }
+}
+
+const loadCraftRecipes = async () => {
+  try {
+    const res = await getCraftRecipesMetaApi()
+    craftRecipes.value = (res as any).data ?? []
+  } catch {
+    craftRecipes.value = []
+  }
+}
+
+const loadCraftsForRecipe = async (recipeId: number | undefined, target: "edit" | "supplier") => {
+  if (!recipeId) {
+    if (target === "edit") craftsForEdit.value = []
+    else craftsForSupplier.value = []
+    return
+  }
+  try {
+    const res = await getCraftRecipeCraftsMetaApi(recipeId)
+    const list = ((res as any).data ?? []) as CraftInRecipeStepDto[]
+    if (target === "edit") craftsForEdit.value = list
+    else craftsForSupplier.value = list
+  } catch {
+    if (target === "edit") craftsForEdit.value = []
+    else craftsForSupplier.value = []
   }
 }
 
@@ -77,6 +113,7 @@ const calculateTableHeight = () => {
 
 onMounted(async () => {
   await loadSuppliers()
+  await loadCraftRecipes()
   calculateTableHeight()
   window.addEventListener("resize", calculateTableHeight)
   await fetchList()
@@ -115,7 +152,8 @@ const editForm = reactive({
   unit: "件",
   receivedQuantity: undefined as number | undefined,
   requiredDeliveryDate: "" as string | undefined,
-  latestCraftCode: "",
+  craftRecipeId: undefined as number | undefined,
+  latestCraftCode: undefined as number | undefined,
   shippingStatus: 0,
   supplierNotes: "",
   actualDeliveryDate: "" as string | undefined
@@ -129,7 +167,7 @@ const editRules: FormRules = {
   supplierId: [{ required: true, message: "必选", trigger: "change" }]
 }
 
-const openCreate = () => {
+const openCreate = async () => {
   Object.assign(editForm, {
     id: undefined,
     poNumber: "",
@@ -142,15 +180,25 @@ const openCreate = () => {
     unit: "件",
     receivedQuantity: undefined,
     requiredDeliveryDate: undefined,
-    latestCraftCode: "",
+    craftRecipeId: undefined,
+    latestCraftCode: undefined,
     shippingStatus: 0,
     supplierNotes: "",
     actualDeliveryDate: undefined
   })
+  craftsForEdit.value = []
   editVisible.value = true
+  const firstRecipeId = craftRecipes.value[0]?.id
+  if (firstRecipeId != null) {
+    editForm.craftRecipeId = firstRecipeId
+    await loadCraftsForRecipe(firstRecipeId, "edit")
+    if (craftsForEdit.value.length > 0) {
+      editForm.latestCraftCode = craftsForEdit.value[0]!.craftCode
+    }
+  }
 }
 
-const openEdit = (row: OrderLineDto) => {
+const openEdit = async (row: OrderLineDto) => {
   Object.assign(editForm, {
     id: row.id,
     poNumber: row.poNumber,
@@ -163,12 +211,19 @@ const openEdit = (row: OrderLineDto) => {
     unit: row.unit,
     receivedQuantity: row.receivedQuantity,
     requiredDeliveryDate: row.requiredDeliveryDate?.slice(0, 10),
+    craftRecipeId: row.craftRecipeId,
     latestCraftCode: row.latestCraftCode,
     shippingStatus: row.shippingStatus,
     supplierNotes: row.supplierNotes,
     actualDeliveryDate: row.actualDeliveryDate?.slice(0, 10)
   })
+  await loadCraftsForRecipe(row.craftRecipeId, "edit")
   editVisible.value = true
+}
+
+const onEditRecipeChange = async () => {
+  editForm.latestCraftCode = undefined
+  await loadCraftsForRecipe(editForm.craftRecipeId, "edit")
 }
 
 const saveEdit = async () => {
@@ -184,7 +239,8 @@ const saveEdit = async () => {
     unit: editForm.unit,
     receivedQuantity: editForm.receivedQuantity ?? null,
     requiredDeliveryDate: editForm.requiredDeliveryDate || null,
-    latestCraftCode: editForm.latestCraftCode || null,
+    craftRecipeId: editForm.craftRecipeId ?? null,
+    latestCraftCode: editForm.latestCraftCode ?? null,
     shippingStatus: editForm.shippingStatus,
     supplierNotes: editForm.supplierNotes || null,
     actualDeliveryDate: editForm.actualDeliveryDate || null
@@ -207,15 +263,33 @@ const shippingStatusLabel = (s: number) => {
   return m[s] ?? String(s)
 }
 
+/** 返修开始、返修发货等：仅年月日 */
 const fmtDateCol = (s?: string) => (s ? s.slice(0, 10) : "-")
+
+/** 加工商更新、返修创建：精确到年月日 时分 */
+const fmtDateTimeHm = (s?: string) => {
+  if (s == null || s === "") return "-"
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) {
+    const t = String(s).replace("T", " ").trim()
+    return t.length >= 16 ? t.slice(0, 16) : t || "-"
+  }
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  const h = String(d.getHours()).padStart(2, "0")
+  const min = String(d.getMinutes()).padStart(2, "0")
+  return `${y}-${m}-${day} ${h}:${min}`
+}
 
 const supplierDlg = ref(false)
 const supplierForm = reactive({
   id: 0,
+  craftRecipeId: undefined as number | undefined,
   repairStatus: 0,
   repairCreatedAt: "" as string | undefined,
   supplierNotes: "",
-  latestCraftCode: "",
+  latestCraftCode: undefined as number | undefined,
   shippingStatus: 0,
   actualDeliveryDate: "" as string | undefined,
   vendorEstimatedDeliveryDate: "" as string | undefined,
@@ -224,25 +298,27 @@ const supplierForm = reactive({
   repairShippedAt: "" as string | undefined
 })
 
-const openSupplier = (row: OrderLineDto) => {
+const openSupplier = async (row: OrderLineDto) => {
   supplierForm.id = row.id
+  supplierForm.craftRecipeId = row.craftRecipeId
   supplierForm.repairStatus = row.repairStatus ?? 0
   supplierForm.repairCreatedAt = row.repairCreatedAt
   supplierForm.supplierNotes = row.supplierNotes ?? ""
-  supplierForm.latestCraftCode = row.latestCraftCode ?? ""
+  supplierForm.latestCraftCode = row.latestCraftCode
   supplierForm.shippingStatus = row.shippingStatus
   supplierForm.actualDeliveryDate = row.actualDeliveryDate?.slice(0, 10)
   supplierForm.repairStartedAt = row.repairStartedAt?.slice(0, 10)
   supplierForm.repairShippedAt = row.repairShippedAt?.slice(0, 10)
   supplierForm.vendorEstimatedDeliveryDate = row.vendorEstimatedDeliveryDate?.slice(0, 10)
   supplierForm.shippedQuantity = row.shippedQuantity
+  await loadCraftsForRecipe(row.craftRecipeId, "supplier")
   supplierDlg.value = true
 }
 
 const saveSupplier = async () => {
   await supplierUpdateLineApi(supplierForm.id, {
     supplierNotes: supplierForm.supplierNotes,
-    latestCraftCode: supplierForm.latestCraftCode,
+    latestCraftCode: supplierForm.latestCraftCode ?? null,
     shippingStatus: supplierForm.shippingStatus,
     actualDeliveryDate: supplierForm.actualDeliveryDate || null,
     vendorEstimatedDeliveryDate: supplierForm.vendorEstimatedDeliveryDate || null,
@@ -289,8 +365,10 @@ const removeLine = (row: OrderLineDto) => {
     .catch(() => {})
 }
 
-const canAdminEdit = computed(() => roles.value.includes("Admin") || roles.value.includes("Supervisor"))
-const isSupplier = computed(() => roles.value.includes("Supplier"))
+const canAdminEdit = computed(
+  () => isSupplierAccount.value !== 1
+)
+const isSupplier = computed(() => isSupplierAccount.value === 1)
 
 /** 跨页连续序号（中间列，随横向区域滚动） */
 const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index + 1
@@ -345,41 +423,45 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
           <el-table-column type="index" label="序号" width="64" fixed="left" :index="tableIndex" align="center" />
           <el-table-column prop="poNumber" label="订单编号" fixed="left" width="90" show-overflow-tooltip />
           <el-table-column prop="projectCode" label="项目编号" fixed="left" width="90" show-overflow-tooltip />
-          <el-table-column prop="partName" label="加工件名称" fixed="left" width="150" show-overflow-tooltip />
-          <el-table-column prop="supplierName" label="供应商" fixed="left" width="130" show-overflow-tooltip />
+          <el-table-column prop="partName" label="加工件名称" fixed="left" width="120" show-overflow-tooltip />
+          <el-table-column prop="supplierName" label="供应商" fixed="left" width="100" show-overflow-tooltip />
           <el-table-column prop="drawingNumber" label="图号" width="120" show-overflow-tooltip />
-          <el-table-column prop="quantity" label="数量" width="60" />
-          <el-table-column prop="receivedQuantity" label="已收数量" width="88" align="right">
+          <el-table-column prop="quantity" label="订单数量" width="65" />
+          <el-table-column prop="receivedQuantity" label="已收数量" width="65" align="right">
             <template #default="{ row }">{{ row.receivedQuantity != null ? row.receivedQuantity : "-" }}</template>
           </el-table-column>
-          <el-table-column prop="shippedQuantity" label="已发数量" width="96" align="right">
+          <el-table-column prop="shippedQuantity" label="已发数量" width="65" align="right">
             <template #default="{ row }">{{ row.shippedQuantity != null ? row.shippedQuantity : "-" }}</template>
           </el-table-column>
-          <el-table-column prop="requiredDeliveryDate" label="交期" width="110" show-overflow-tooltip>
+          <el-table-column prop="requiredDeliveryDate" label="交期" width="80" show-overflow-tooltip>
             <template #default="{ row }">{{ fmtDateCol(row.requiredDeliveryDate) }}</template>
           </el-table-column>
-          <el-table-column prop="latestCraftCode" label="最新工艺" width="88" />
-          <el-table-column prop="shippingStatus" label="发货状态" width="88">
+          <el-table-column label="最新工艺" width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.latestCraftName || row.latestCraftCode || "-" }}</template>
+          </el-table-column>
+          <el-table-column prop="shippingStatus" label="发货状态" width="80">
             <template #default="{ row }">
               {{ shippingStatusLabel(row.shippingStatus ?? 0) }}
             </template>
           </el-table-column>
-          <el-table-column prop="vendorUpdatedAt" label="加工商更新" width="160" show-overflow-tooltip />
+          <el-table-column label="加工商更新" width="140" show-overflow-tooltip>
+            <template #default="{ row }">{{ fmtDateTimeHm(row.vendorUpdatedAt) }}</template>
+          </el-table-column>
           <el-table-column label="返修状态" width="96">
             <template #default="{ row }">
               {{ repairStatusLabel(row.repairStatus ?? 0) }}
             </template>
           </el-table-column>
-          <el-table-column label="返修创建" width="110">
-            <template #default="{ row }">{{ fmtDateCol(row.repairCreatedAt) }}</template>
+          <el-table-column label="返修创建" width="140">
+            <template #default="{ row }">{{ fmtDateTimeHm(row.repairCreatedAt) }}</template>
           </el-table-column>
-          <el-table-column label="返修开始" width="110">
+          <el-table-column label="返修开始" width="80">
             <template #default="{ row }">{{ fmtDateCol(row.repairStartedAt) }}</template>
           </el-table-column>
-          <el-table-column label="返修发货" width="110">
+          <el-table-column label="返修发货" width="80">
             <template #default="{ row }">{{ fmtDateCol(row.repairShippedAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right" align="center">
+          <el-table-column label="操作" width="150" fixed="right" align="center">
             <template #default="{ row }">
               <el-button v-if="canAdminEdit" link type="primary" @click="openEdit(row)">编辑</el-button>
               <el-button v-if="canAdminEdit" link type="danger" @click="removeLine(row)">删除</el-button>
@@ -426,7 +508,7 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
             <el-option v-for="s in suppliers" :key="s.id" :label="`${s.supplierNumber} ${s.name}`" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="数量">
+        <el-form-item label="订单数量">
           <el-input-number v-model="editForm.quantity" :min="0" :step="1" />
         </el-form-item>
         <el-form-item label="收货数量">
@@ -438,8 +520,29 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
         <el-form-item label="要求交期">
           <el-date-picker v-model="editForm.requiredDeliveryDate" type="date" value-format="YYYY-MM-DD" />
         </el-form-item>
-        <el-form-item label="最新工艺码">
-          <el-input v-model="editForm.latestCraftCode" />
+        <el-form-item label="工艺配方">
+          <el-select
+            v-model="editForm.craftRecipeId"
+            clearable
+            filterable
+            placeholder="选择工艺配方"
+            style="width: 100%"
+            @change="onEditRecipeChange"
+          >
+            <el-option v-for="r in craftRecipes" :key="r.id" :label="r.name" :value="r.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="最新工艺">
+          <el-select
+            v-model="editForm.latestCraftCode"
+            clearable
+            filterable
+            placeholder="先选择工艺配方"
+            style="width: 100%"
+            :disabled="!editForm.craftRecipeId"
+          >
+            <el-option v-for="c in craftsForEdit" :key="c.craftId" :label="c.craftName" :value="c.craftCode" />
+          </el-select>
         </el-form-item>
         <el-form-item label="发货状态">
           <el-select v-model="editForm.shippingStatus" style="width: 100%">
@@ -468,7 +571,7 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
             <span>{{ repairStatusLabel(supplierForm.repairStatus) }}</span>
           </el-form-item>
           <el-form-item label="返修创建日">
-            <span>{{ fmtDateCol(supplierForm.repairCreatedAt) }}</span>
+            <span>{{ fmtDateTimeHm(supplierForm.repairCreatedAt) }}</span>
           </el-form-item>
           <el-form-item label="返修开始日">
             <el-date-picker
@@ -490,8 +593,13 @@ const tableIndex = (index: number) => (query.page - 1) * query.pageSize + index 
         <el-form-item label="备注">
           <el-input v-model="supplierForm.supplierNotes" type="textarea" />
         </el-form-item>
-        <el-form-item label="最新工艺码">
-          <el-input v-model="supplierForm.latestCraftCode" />
+        <el-form-item v-if="craftsForSupplier.length > 0" label="最新工艺">
+          <el-select v-model="supplierForm.latestCraftCode" clearable filterable style="width: 100%">
+            <el-option v-for="c in craftsForSupplier" :key="c.craftId" :label="c.craftName" :value="c.craftCode" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-else label="最新工艺码">
+          <el-input-number v-model="supplierForm.latestCraftCode" :min="1" :step="1" style="width: 100%" />
         </el-form-item>
         <el-form-item label="加工商预估交期">
           <el-date-picker

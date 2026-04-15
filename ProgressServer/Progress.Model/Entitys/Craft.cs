@@ -6,7 +6,8 @@ namespace Progress.Model.Entitys
     public class Craft
     {
         [Key] public int Id { get; set; }
-        [MaxLength(64)] public string Code { get; set; } = "";
+        /// <summary>业务编码（整型，唯一）。</summary>
+        public int Code { get; set; }
         [MaxLength(256)] public string Name { get; set; } = "";
         /// <summary>可选：兼容旧版 JSON 或说明文本。</summary>
         public string? RecipeBody { get; set; }

@@ -36,6 +36,7 @@ namespace Progress.Repository
             modelBuilder.Entity<WorkpieceOrderLine>(e =>
             {
                 e.HasOne(x => x.Supplier).WithMany().HasForeignKey(x => x.SupplierId);
+                e.HasOne(x => x.CraftRecipe).WithMany().HasForeignKey(x => x.CraftRecipeId);
             });
 
             //数据库索引
